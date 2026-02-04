@@ -8,16 +8,6 @@ pub mod mock;
 
 use core::fmt::Debug;
 
-/// Radio trait combining the minimal required traits for a generic radio object.
-///
-/// This trait serves as a convenient bound for generic code that requires both
-/// transmit and receive capabilities. Implementations automatically satisfy this
-/// trait by implementing both [`Transmit`] and [`Receive`].
-///
-/// Additional capabilities such as [`Power`] control and [`State`] management
-/// can be implemented separately as needed.
-pub trait Radio: Transmit + Receive {}
-
 /// Transmit capability for packet radio devices.
 ///
 /// This trait provides the minimal interface for transmitting data packets. Implementations
@@ -118,19 +108,10 @@ pub trait Receive {
     async fn receive(&mut self, buffer: &mut [u8]) -> Result<(usize, Self::Info), Self::Error>;
 }
 
-/// Radio transmit power in dBm.
-///
-/// This type provides type safety for power values and allows implementations to
-/// clip values to chip-specific valid ranges through custom `From` implementations
-/// or conversion methods.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Dbm(pub i8);
-
 /// Power control for radio devices.
 ///
 /// This trait provides transmit power configuration. Valid power ranges are
-/// chip-specific and can be documented by implementations. The [`Dbm`] type
-/// allows implementations to clip values to valid ranges.
+/// chip-specific and can be documented by implementations.
 pub trait Power {
     /// Radio error type.
     ///
@@ -138,16 +119,15 @@ pub trait Power {
     /// or to describe radio-specific error conditions.
     type Error: Debug + 'static;
 
+    /// Radio transmit power.
+    ///
+    /// Implementations may use custom Dbm structs which automate clipping.
+    type PowerType;
+
     /// Set the radio transmit power.
     ///
     /// Configures the output power for subsequent transmissions. The actual power
-    /// range and granularity depend on the radio chip. Values outside the supported
-    /// range can be clipped to the nearest valid value through the [`Dbm`] type.
-    ///
-    /// # Parameters
-    ///
-    /// * `power` - Transmit power in dBm. Implementations may document their
-    ///   supported power range (e.g., -30 to +20 dBm for CC1200).
+    /// range and granularity depend on the radio chip.
     ///
     /// # Notes
     ///
@@ -155,7 +135,7 @@ pub trait Power {
     /// - Some radios may have regulatory or hardware limitations on maximum power
     /// - Power changes may take effect immediately or on the next transmission,
     ///   depending on the implementation
-    async fn set_power(&mut self, power: Dbm) -> Result<(), Self::Error>;
+    async fn set_power(&mut self, power: Self::PowerType) -> Result<(), Self::Error>;
 }
 
 /// State management for radio devices.
